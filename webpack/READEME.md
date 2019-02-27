@@ -15,3 +15,7 @@ npm install --global webpack
 npm install webpack@beta
 npm install webpack/webpack#<tagname/branchname>
 注意:安装这些前沿释放时要小心！它们可能仍然包含错误，因此不应用于生产。
+
+
+
+## package.json
