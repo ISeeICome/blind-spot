@@ -11,7 +11,7 @@
 ## 计算机的组成与工作原理
     计算机的基本部件分为五大部分：输入设备、处理器、主存储器、输出设备、外存储器。
 
-![screenshot](./img/computerWork.png)
+![screenshot](https://github.com/ISeeICome/blind-spot/blob/master/computer_principle/img/computerWork.png)
 
 ## 计算机系统
 ### 计算机软甲分类
