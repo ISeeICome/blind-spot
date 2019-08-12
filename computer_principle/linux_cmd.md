@@ -1463,3 +1463,21 @@
          （3）周期性查询内存使用情况
 
          free -s 10
+
+df -h 
+Df命令是linux系统以磁盘分区为单位查看文件系统，可以加上参数查看磁盘剩余空间信息，命令格式： 
+
+df -hl 查看磁盘剩余空间 
+df -h 查看每个根路径的分区大小 
+du -sh [目录名] 返回该目录的大小 
+du -sm [文件夹] 返回该文件夹总M数 
+更多功能可以输入一下命令查看： 
+df –help 
+du –help
+
+查看硬盘的分区 #sudo fdisk -l 
+查看IDE硬盘信息 #sudo hdparm -i /dev/hda 
+查看STAT硬盘信息 #sudo hdparm -I /dev/sda 或 #sudo apt-get installblktool #sudo blktool /dev/sda id 
+查看硬盘剩余空间 #df -h #df -H 
+查看目录占用空间 #du -hs 目录名 
+优盘没法卸载 #sync fuser -km /media/usbdisk

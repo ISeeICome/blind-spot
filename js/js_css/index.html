@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+
+    <style>
+        @keyframes fadeIn {
+            0% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0;
+            }
+        }
+
+        .fadeIn {
+            animation: fadeIn linear 1s infinite;
+        }
+    </style>
+</head>
+
+<body>
+
+</body>
+<script>
+    var body = document.getElementsByTagName("body")[0];
+
+    var random = function () {
+        return Math.random() * 800;
+    }
+
+    for (var i = 0; i < 300; i++) {
+        var div = document.createElement("div"); //创建一个div
+        console.log(typeof (div))
+        div.style.cssText = "width:100px;height:100px;background-color:red;position:absolute";  //设置style
+        div.style.cssText += `left:${random()}px;top:${random()}px`;
+        body.appendChild(div);
+    }
+
+    var elArr = document.getElementsByTagName('div');
+    // for (var j = 0; j < elArr.length; j++) {
+    //     elArr[j].className = 'fadeIn';
+    // }
+
+    var opacity = 1;
+
+    requestAnimationFrame(function update() {
+        opacity = (opacity -= 0.2) < 0 ? 1 : opacity;
+        console.log(opacity)
+        for (var j = 0; j < elArr.length; j++) {
+            elArr[j].style.opacity = opacity;
+        }
+        requestAnimationFrame(update);
+    })
+</script>
+
+</html>
