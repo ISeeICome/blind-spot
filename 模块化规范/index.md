@@ -244,6 +244,198 @@ const es_namespace = require('./es');
 //   get c() {return c;}
 // }
 ```
+### CommonJS与ES6的循环加载
+#### 循环加载
+循环加载”（circular dependency）指的是，a脚本的执行依赖b脚本，而b脚本的执行又依赖a脚本。
+```js
+// a.js
+var b = require('b');
+
+// b.js
+var a = require('a');
+```
+通常，“循环加载”表示存在强耦合，如果处理不好，还可能导致递归加载，使得程序无法执行，因此应该避免出现这种现象。
+
+但是实际上，这是很难避免的，尤其是依赖关系复杂的大项目中很容易出现a依赖b，b依赖c，c又依赖a这样的情况。这意味着，模块加载机制必须考虑“循环加载”的情况。
+
+对于JavaScript语言来说，目前最常见的两种模块格式CommonJS和ES6在处理“循环加载”时的方法是不一样的，返回的结果也不一样。
+#### CommonJS模块的加载原理
+介绍ES6如何处理“循环加载”之前，先介绍目前最流行的CommonJS模块格式的加载原理。
+
+CommonJS的一个模块就是一个脚本文件。require命令第一次加载该脚本时就会执行整个脚本，然后在内存中生成一个对象。
+```js
+{
+  id: '...',
+  exports: { ... },
+  loaded: true,
+  ...
+}
+```
+上面的代码就是Node内部加载模块后生成的一个对象。该对象的id属性是模块名，exports属性是模块输出的各个接口，loaded属性是一个布尔值，表示该模块的脚本是否执行完毕。其他还有很多属性，这里都省略了。
+
+以后需要用到这个模块时就会到exports属性上面取值。即使再次执行require命令，也不会再次执行该模块，而是到缓存之中取值。也就是说，CommonJS模块无论加载多少次，都只会在第一次加载时运行一次，以后再加载时就返回第一次运行的结果，除非手动清除系统缓存。
+#### CommonJS模块的循环加载
+CommonJS模块的重要特性是加载时执行，即脚本代码在require的时候就会全部执行。一旦出现某个模块被“循环加载”，就只输出已经执行的部分，还未执行的部分不会输出。
+
+让我们来看一下Node官方文档（nodejs.org/api/modules.html#modules_cycles）里面的例子。脚本文件a.js代码如下。
+```js
+exports.done = false;
+var b = require('./b.js');
+console.log('在 a.js 之中，b.done = %j', b.done);
+exports.done = true;
+console.log('a.js 执行完毕');
+```
+上面的代码之中，a.js脚本先输出一个done变量，然后加载另一个脚本文件b.js。注意，此时a.js代码就停在这里，等待b.js执行完毕再往下执行。
+
+再看b.js的代码。
+```js
+exports.done = false;
+var a = require('./a.js');
+console.log('在 b.js 之中，a.done = %j', a.done);
+exports.done = true;
+console.log('b.js 执行完毕');
+```
+上面的代码中，b.js执行到第二行就会加载a.js，这时就发生了“循环加载”，系统会去a.js模块对应对象的exports属性中取值，可是因为a.js还没有执行完，因此从exports属性中只能取回已经执行的部分，而不是最后的值。
+
+a.js已经执行的部分只有以下一行。
+```js
+exports.done = false;
+```
+因此，对于b.js来说，它从a.js只输入一个变量done，值为false。
+
+然后，b.js接着执行，等到全部执行完毕，再把执行权交还给a.js。于是，a.js接着执行，直到执行完毕。下面，我们来写一个脚本main.js验证这个过程。
+```js
+var a = require('./a.js');
+var b = require('./b.js');
+console.log('在 main.js 之中, a.done=%j, b.done=%j', a.done, b.done);
+```
+执行main.js，运行结果如下。
+在 b.js 之中，a.done = false 
+b.js 执行完毕 
+在 a.js 之中，b.done = true 
+a.js 执行完毕 
+在 main.js 之中, a.done=true, b.done=true
+
+上面的代码证明了两件事。第一，在b.js之中，a.js没有执行完毕，只执行了第一行。第二，reimain.js执行到第二行时不会再次执行b.js，而是输出缓存的b.js的执行结果，即它的第四行
+```js
+exports.done = true;
+```
+总之，CommonJS输入的是被输出值的复制，而不是引用。
+
+另外，由于CommonJS模块遇到循环加载时返回的是当前已经执行的部分的值，而不是代码全部执行后的值，两者可能会有差异。所以，输入变量的时候必须非常小心。
+```js
+var a = require('a');               // 安全的写法
+var foo = require('a').foo;         // 危险的写法
+
+exports.good = function (arg) {
+  return a.foo('good', arg);        // 使用的是a.foo的最新值
+};
+
+exports.bad = function (arg) {
+  return foo('bad', arg);       // 使用的是一个部分加载时的值
+};
+```
+上面的代码中，如果发生循环加载，require(‘a’).foo的值很可能会被改写，改用require(‘a’)会更保险一点。
+#### ES6模块的循环加载
+ES6处理“循环加载”与CommonJS有本质的不同。ES6模块是动态引用，如果使用import从一个模块中加载变量（即import foo from ‘foo’），那么，变量不会被缓存，而是成为一个指向被加载模块的引用，需要开发者保证在真正取值的时候能够取到值。
+
+请看下面这个例子。
+```js
+// a.js如下
+import {bar} from './b.js';
+console.log('a.js');
+console.log(bar);
+export let foo = 'foo';
+
+// b.js
+import {foo} from './a.js';
+console.log('b.js');
+console.log(foo);
+export let bar = 'bar';
+```
+上面的代码中，a.js加载b.js，b.js又加载a.js，构成循环加载。执行a.js，结果如下。
+```js
+$ babel-node a.js
+b.js
+undefined
+a.js
+Bar
+```
+上面的代码中，由于a.js的第一行是加载b.js，所以先执行的是b.js。而b.js的第一行又是加载a.js，这时由于a.js已经开始执行，所以不会重复执行，而是继续执行b.js，因此第一行输出的是b.js。
+
+接着，b.js要打印变量foo，这时a.js还没有执行完，取不到foo的值，因此打印出来的是undefined。b.js执行完便会开始执行a.js，这时便会一切正常。
+
+再来看一个稍微复杂的例子
+```js
+// a.js
+import {bar} from './b.js';
+export function foo() {
+  console.log('foo');
+  bar();
+  console.log('执行完毕');
+}
+foo();
+
+// b.js
+import {foo} from './a.js';
+export function bar() {
+  console.log('bar');
+  if (Math.random() > 0.5) {
+    foo();
+  }
+}
+```
+按照CommonJS规范，上面的代码是无法执行的。a先加载b，然后b又加载a，这时a还没有任何执行结果，所以输出结果为null，即对于b.js来说，变量foo的值等于null，后面的foo()就会报错。
+
+但是，ES6可以执行上面的代码。
+```js
+$ babel-node a.js
+foo
+bar
+执行完毕
+
+// 执行结果也有可能是
+foo
+bar
+foo
+bar
+执行完毕
+执行完毕
+```
+上面的代码中，a.js之所以能够执行，原因就在于ES6加载的变量都是动态引用其所在模块的。只要引用存在，代码就能执行。
+
+下面，我们来详细分析这段代码的运行过程。
+```js
+// a.js
+
+// 这一行建立一个引用，
+// 从`b.js`引用`bar`
+import {bar} from './b.js';
+
+export function foo() {
+  // 执行时第一行输出foo
+  console.log('foo');
+  // 到 b.js 执行 bar
+  bar();
+  console.log('执行完毕');
+}
+foo();
+
+// b.js
+
+// 建立`a.js`的`foo`引用
+import {foo} from './a.js';
+
+export function bar() {
+  // 执行时，第二行输出bar
+  console.log('bar');
+  // 递归执行foo，一旦随机数
+  // 小于等于0.5，就停止执行
+  if (Math.random() > 0.5) {
+    foo();
+  }
+}
+```
 ## 模块解析策略
 相对与非相对模块导入：
 根据模块引用是相对的还是非相对的，模块导入会以不同的方式解析。

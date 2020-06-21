@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <a href="http://127.0.0.1:5500/%E5%89%8D%E7%AB%AF%E6%94%BB%E5%87%BB/xssDemo/demo1.html?key=%22%3E%3Cscript%3Ealert(%27XSS%27);%3C/script%3E" target="_blank" rel="noopener noreferrer">xss</a>
+    <input type="text" name="" id="inputVal" value="12">
+    <button onclick="clickSubmit()">提交</button>
+    <input type="text" name="" id="outputVal" value="12">
+</body>
+</html>
+<script>
+    const key = location.search.substr(1, location.search.length-1).split('=')[1];
+
+    console.log(key)
+    // const clickSubmit = () =>{
+    //     const inputValEl = document.getElementById('inputVal');
+    //     const val = inputValEl.value;
+    //     console.log(val)
+    //     document.getElementById('outputVal').value = val;
+    // }
+</script>
+<!-- <script>alert('xss')</script> -->
+<!-- demo1正常 -->
+<!-- <script>alert('xss')</script> --> 
+
+<!-- demo2攻击  加上">-->
+<!-- "><script>alert('xss')</script> --> 
+
